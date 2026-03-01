@@ -30,17 +30,27 @@ export const articlesRoutes = new Elysia({ prefix: '/articles' })
       targetLang: t.Optional(t.String())
     })
   })
-  .post('/:id/summarize', async ({ params: { id } }) => {
+  .post('/:id/summarize', async ({ params: { id }, body }) => {
     const article = await db.select().from(articles).where(eq(articles.id, id)).get();
     if (!article) throw new Error('Article not found');
 
-    const summary = await agentService.summarizeContent(article.url, article.content || undefined);
+    let targetLang = body.targetLang;
+    if (!targetLang) {
+      const setting = await db.select().from(settings).where(eq(settings.key, 'target_language')).get();
+      targetLang = setting?.value || 'Chinese';
+    }
+
+    const summary = await agentService.summarizeContent(article.url, article.content || undefined, targetLang);
     
     await db.update(articles)
       .set({ aiSummary: summary })
       .where(eq(articles.id, id));
       
     return { aiSummary: summary };
+  }, {
+    body: t.Object({
+      targetLang: t.Optional(t.String())
+    })
   })
   .get('/', async ({ query }) => {
     const { sourceId } = query as { sourceId?: string };

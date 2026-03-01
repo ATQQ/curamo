@@ -35,8 +35,8 @@ Title: ${title}`;
     }
   }
 
-  async summarizeContent(url: string, content?: string) {
-    console.log(`Summarizing content for ${url}`);
+  async summarizeContent(url: string, content?: string, targetLang?: string) {
+    console.log(`Summarizing content for ${url} in ${targetLang}`);
     
     let textToSummarize = content;
 
@@ -58,7 +58,7 @@ Title: ${title}`;
     // Truncate if too long
     const truncatedText = textToSummarize.substring(0, 10000); 
 
-    const prompt = `Please provide a concise summary of the following article content. Focus on the key points.
+    const prompt = `Please provide a concise summary of the following article content in ${targetLang || 'the original language'}. Focus on the key points.
 Content:
 ${truncatedText}`;
 

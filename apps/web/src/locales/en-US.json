@@ -83,6 +83,7 @@
     "translate": "Translate",
     "retranslate": "Re-translate",
     "summarize": "Summarize",
+    "resummarize": "Re-summarize",
     "showOriginal": "Show Original",
     "hideSummary": "Hide Summary"
   },

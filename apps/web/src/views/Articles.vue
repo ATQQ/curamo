@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { ExternalLink, Calendar, CheckSquare, Plus, Loader2, FileText, Languages, Bot, ChevronDown, ChevronUp, RefreshCw } from 'lucide-vue-next'
+import { ExternalLink, Calendar, CheckSquare, Plus, Loader2, FileText, Languages, Bot, ChevronDown, ChevronUp, RefreshCw, Copy, Check, FileCode, Eye } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import client from '@/api/client'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import MarkdownIt from 'markdown-it'
 
+const md = new MarkdownIt()
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
@@ -33,6 +35,8 @@ const showTranslated = ref<Record<string, boolean>>({})
 const translating = ref<Record<string, boolean>>({})
 const showSummary = ref<Record<string, boolean>>({})
 const summarizing = ref<Record<string, boolean>>({})
+const summaryRawMode = ref<Record<string, boolean>>({})
+const copiedSummary = ref<Record<string, boolean>>({})
 
 const toggleTranslate = async (article: Article, force = false) => {
   if (!force && showTranslated.value[article.id]) {
@@ -63,20 +67,20 @@ const toggleTranslate = async (article: Article, force = false) => {
   }
 }
 
-const toggleSummary = async (article: Article) => {
-  if (showSummary.value[article.id]) {
+const toggleSummary = async (article: Article, force = false) => {
+  if (!force && showSummary.value[article.id]) {
     showSummary.value[article.id] = false
     return
   }
 
-  if (article.aiSummary) {
+  if (!force && article.aiSummary) {
     showSummary.value[article.id] = true
     return
   }
 
   summarizing.value[article.id] = true
   try {
-    const { data } = await (client.articles({ id: article.id }) as any).summarize.post()
+    const { data } = await (client.articles({ id: article.id }) as any).summarize.post({})
     if (data && data.aiSummary) {
       // Refresh the single article data from server
       const { data: refreshedData } = await client.articles({ id: article.id }).get()
@@ -92,6 +96,25 @@ const toggleSummary = async (article: Article) => {
   }
 }
 
+const copySummary = async (article: Article) => {
+  if (!article.aiSummary) return
+  
+  try {
+    await navigator.clipboard.writeText(article.aiSummary)
+    copiedSummary.value[article.id] = true
+    setTimeout(() => {
+      copiedSummary.value[article.id] = false
+    }, 2000)
+  } catch (err) {
+    console.error('Failed to copy:', err)
+  }
+}
+
+const toggleSummaryMode = (article: Article) => {
+  summaryRawMode.value[article.id] = !summaryRawMode.value[article.id]
+}
+
+
 const fetchArticles = async () => {
   try {
     const sourceId = route.query.sourceId as string | undefined
@@ -99,7 +122,19 @@ const fetchArticles = async () => {
       query: sourceId ? { sourceId } : undefined
     })
     if (error) throw error
-    if (data) articles.value = data as Article[]
+    if (data) {
+      articles.value = data as Article[]
+      
+      // Initialize display state based on existing data
+      articles.value.forEach(article => {
+        if (article.translatedTitle) {
+          showTranslated.value[article.id] = true
+        }
+        if (article.aiSummary) {
+          showSummary.value[article.id] = true
+        }
+      })
+    }
   } catch (err) {
     console.error('Failed to fetch articles:', err)
   } finally {
@@ -268,6 +303,18 @@ onMounted(() => {
               {{ showSummary[article.id] ? (t('articles.hideSummary') || 'Hide Summary') : (t('articles.summarize') || 'Summarize') }}
             </Button>
 
+            <Button 
+              v-if="showSummary[article.id]"
+              size="sm" 
+              variant="ghost" 
+              class="h-7 px-2 text-xs text-slate-500 hover:text-emerald-600 hover:bg-emerald-50"
+              @click.stop="toggleSummary(article, true)"
+              :disabled="summarizing[article.id]"
+            >
+              <RefreshCw :class="['mr-1 h-3 w-3', { 'animate-spin': summarizing[article.id] }]" />
+              {{ t('articles.resummarize') || 'Re-summarize' }}
+            </Button>
+
             <a :href="article.url" target="_blank" class="inline-flex items-center justify-center h-7 px-2 rounded-md text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground text-slate-500 hover:text-emerald-600" @click.stop>
               <ExternalLink class="mr-1 h-3 w-3" />
               {{ t('articles.readOriginal') }}
@@ -275,12 +322,40 @@ onMounted(() => {
           </div>
 
           <!-- AI Summary Section -->
-          <div v-if="showSummary[article.id] && article.aiSummary" class="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-100 animate-in fade-in slide-in-from-top-2">
-            <div class="flex items-center gap-2 mb-2">
-              <Bot class="h-3.5 w-3.5 text-emerald-600" />
-              <span class="text-xs font-medium text-slate-700">AI Summary</span>
+          <div v-if="showSummary[article.id] && article.aiSummary" class="mt-3 bg-slate-50 rounded-lg border border-slate-100 animate-in fade-in slide-in-from-top-2 overflow-hidden">
+            <div class="flex items-center justify-between p-3 border-b border-slate-100/50">
+              <div class="flex items-center gap-2">
+                <Bot class="h-3.5 w-3.5 text-emerald-600" />
+                <span class="text-xs font-medium text-slate-700">AI Summary</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <Button 
+                  size="icon" 
+                  variant="ghost" 
+                  class="h-6 w-6 text-slate-400 hover:text-emerald-600"
+                  :title="summaryRawMode[article.id] ? 'Preview Markdown' : 'View Raw Markdown'"
+                  @click.stop="toggleSummaryMode(article)"
+                >
+                  <Eye v-if="summaryRawMode[article.id]" class="h-3.5 w-3.5" />
+                  <FileCode v-else class="h-3.5 w-3.5" />
+                </Button>
+                <Button 
+                  size="icon" 
+                  variant="ghost" 
+                  class="h-6 w-6 text-slate-400 hover:text-emerald-600"
+                  :title="copiedSummary[article.id] ? 'Copied!' : 'Copy to clipboard'"
+                  @click.stop="copySummary(article)"
+                >
+                  <Check v-if="copiedSummary[article.id]" class="h-3.5 w-3.5 text-emerald-600" />
+                  <Copy v-else class="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
-            <div class="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{{ article.aiSummary }}</div>
+            
+            <div class="p-4 text-sm text-slate-600 leading-relaxed">
+              <div v-if="!summaryRawMode[article.id]" class="prose prose-sm max-w-none prose-slate prose-p:my-2 prose-headings:mb-2 prose-headings:mt-4 prose-ul:my-2 prose-li:my-0.5" v-html="md.render(article.aiSummary)"></div>
+              <pre v-else class="whitespace-pre-wrap font-mono text-xs bg-white p-3 rounded border border-slate-200 overflow-x-auto">{{ article.aiSummary }}</pre>
+            </div>
           </div>
         </div>
       </div>
