@@ -1,0 +1,148 @@
+{
+  "app": {
+    "name": "Curamo",
+    "version": "v0.1.0",
+    "poweredBy": "Powered by Bun"
+  },
+  "nav": {
+    "overview": "Overview",
+    "dashboard": "Dashboard",
+    "content": "Content",
+    "sources": "Sources",
+    "articles": "Articles",
+    "workspace": "Workspace",
+    "tasks": "Tasks",
+    "settings": "Settings",
+    "newCuration": "New Curation"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome back! Here's what's happening today.",
+    "viewReports": "View Reports",
+    "newTask": "New Task",
+    "stats": {
+      "totalArticles": "Total Articles",
+      "fromLastMonth": "from last month",
+      "activeTasks": "Active Tasks",
+      "generating": "currently generating",
+      "published": "Published",
+      "fromLastWeek": "from last week",
+      "createSource": "Create New Source",
+      "addSourceDesc": "Add RSS or URL"
+    },
+    "recentTasks": {
+      "title": "Recent Tasks",
+      "remaining": "You have {count} active tasks remaining.",
+      "draft": "Draft",
+      "published": "Published"
+    },
+    "systemStatus": {
+      "title": "System Status",
+      "engine": "AI Engine & Services",
+      "crawler": "RSS Crawler",
+      "idle": "Idle",
+      "online": "Online",
+      "connected": "Connected"
+    }
+  },
+  "sources": {
+    "title": "Sources",
+    "subtitle": "Manage your RSS feeds and data sources.",
+    "addSource": "Add Source",
+    "noSources": "No sources yet",
+    "getStarted": "Get started by adding your first RSS feed or website source.",
+    "syncing": "Syncing...",
+    "lastSynced": "Last synced: {date}",
+    "neverSynced": "Never synced",
+    "name": "Name",
+    "url": "URL",
+    "type": "Type",
+    "rss": "RSS Feed",
+    "manual": "Manual Entry",
+    "cancel": "Cancel",
+    "adding": "Adding...",
+    "placeholderName": "e.g. TechCrunch",
+    "placeholderUrl": "https://techcrunch.com/feed",
+    "addNew": "Add New Source",
+    "delete": "Delete",
+    "deleteConfirm": "Are you sure you want to delete {name}?",
+    "deleting": "Deleting...",
+    "view": "View Content"
+  },
+  "articles": {
+    "title": "Articles",
+    "subtitle": "Browse and filter collected articles.",
+    "createTask": "Create Task ({count})",
+    "selectArticles": "Select Articles",
+    "cancelSelection": "Cancel Selection",
+    "noArticles": "No articles found",
+    "syncSources": "Sync your sources to fetch the latest articles.",
+    "goToSources": "Go to Sources",
+    "news": "News",
+    "readOriginal": "Read Original",
+    "translate": "Translate",
+    "retranslate": "Re-translate",
+    "summarize": "Summarize",
+    "showOriginal": "Show Original",
+    "hideSummary": "Hide Summary"
+  },
+  "tasks": {
+    "title": "Tasks",
+    "subtitle": "Create and manage curation tasks.",
+    "newTask": "New Task",
+    "noTasks": "No tasks yet",
+    "createToStart": "Create a task to start curating content.",
+    "createTask": "Create Task",
+    "creating": "Creating...",
+    "view": "View",
+    "status": {
+      "draft": "Draft",
+      "generated": "Generated",
+      "published": "Published"
+    },
+    "placeholderTitle": "e.g. Weekly Newsletter #42",
+    "addNew": "New Task"
+  },
+  "taskDetail": {
+    "notFound": "Task not found",
+    "backToTasks": "Back to Tasks",
+    "articlesSelected": "{count} articles selected",
+    "saveDraft": "Save Draft",
+    "generateContent": "Generate Content",
+    "regenerate": "Regenerate",
+    "sourceArticles": "Source Articles",
+    "article": "Article",
+    "write": "Write",
+    "preview": "Preview",
+    "contentPlaceholder": "Content will appear here after generation..."
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Manage your preferences and system configuration.",
+    "general": "General",
+    "system": "System",
+    "appearance": "Appearance",
+    "customizeLook": "Customize how Curamo looks on your device.",
+    "systemInfo": "System Information",
+    "statusServices": "Status of connected services and environment.",
+    "appVersion": "App Version",
+    "core": "Core",
+    "database": "Database",
+    "turso": "Turso / SQLite",
+    "apiServer": "API Server",
+    "elysia": "ElysiaJS",
+    "connected": "Connected",
+    "running": "Running",
+    "targetLanguage": "Translated target Language",
+    "translate": "Translate",
+    "summarize": "Summarize",
+    "showOriginal": "Show Original"
+  },
+  "common": {
+    "language": "Language",
+    "theme": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  }
+}

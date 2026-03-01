@@ -1,0 +1,145 @@
+{
+  "app": {
+    "name": "Curamo",
+    "version": "v0.1.0",
+    "poweredBy": "基于 Bun"
+  },
+  "nav": {
+    "overview": "概览",
+    "dashboard": "仪表盘",
+    "content": "内容管理",
+    "sources": "订阅源",
+    "articles": "文章库",
+    "workspace": "工作区",
+    "tasks": "精选任务",
+    "settings": "系统设置",
+    "newCuration": "新建精选"
+  },
+  "dashboard": {
+    "title": "仪表盘",
+    "welcome": "欢迎回来！今日概况如下。",
+    "viewReports": "查看报告",
+    "newTask": "新建任务",
+    "stats": {
+      "totalArticles": "文章总数",
+      "fromLastMonth": "较上月",
+      "activeTasks": "进行中任务",
+      "generating": "正在生成",
+      "published": "已发布",
+      "fromLastWeek": "较上周",
+      "createSource": "添加新订阅源",
+      "addSourceDesc": "添加 RSS 或 URL"
+    },
+    "recentTasks": {
+      "title": "最近任务",
+      "remaining": "您还有 {count} 个任务正在进行中。",
+      "draft": "草稿",
+      "published": "已发布"
+    },
+    "systemStatus": {
+      "title": "系统状态",
+      "engine": "AI 引擎与服务",
+      "crawler": "RSS 抓取器",
+      "idle": "空闲",
+      "online": "在线",
+      "connected": "已连接"
+    }
+  },
+  "sources": {
+    "title": "订阅源",
+    "subtitle": "管理您的 RSS 订阅源和数据来源。",
+    "addSource": "添加订阅源",
+    "noSources": "暂无订阅源",
+    "getStarted": "添加您的第一个 RSS 源或网站来源。",
+    "syncing": "同步中...",
+    "lastSynced": "上次同步: {date}",
+    "neverSynced": "从未同步",
+    "name": "名称",
+    "url": "网址",
+    "type": "类型",
+    "rss": "RSS 订阅源",
+    "manual": "手动输入",
+    "cancel": "取消",
+    "adding": "添加中...",
+    "placeholderName": "例如：TechCrunch",
+    "placeholderUrl": "https://techcrunch.com/feed",
+    "addNew": "添加新订阅源",
+    "delete": "删除",
+    "deleteConfirm": "确定要删除 {name} 吗？",
+    "deleting": "删除中...",
+    "view": "查看内容"
+  },
+  "articles": {
+    "title": "文章库",
+    "subtitle": "浏览和筛选已收集的文章。",
+    "createTask": "创建任务 ({count})",
+    "selectArticles": "选择文章",
+    "cancelSelection": "取消选择",
+    "noArticles": "未找到文章",
+    "syncSources": "同步订阅源以获取最新文章。",
+    "goToSources": "前往订阅源",
+    "news": "新闻",
+    "readOriginal": "阅读原文",
+    "translate": "翻译",
+    "retranslate": "重新翻译",
+    "summarize": "总结",
+    "showOriginal": "显示原文",
+    "hideSummary": "收起总结"
+  },
+  "tasks": {
+    "title": "精选任务",
+    "subtitle": "创建和管理内容精选任务。",
+    "newTask": "新建任务",
+    "noTasks": "暂无任务",
+    "createToStart": "创建一个任务开始精选内容。",
+    "createTask": "创建任务",
+    "creating": "创建中...",
+    "view": "查看",
+    "status": {
+      "draft": "草稿",
+      "generated": "已生成",
+      "published": "已发布"
+    },
+    "placeholderTitle": "例如：第42期周刊",
+    "addNew": "新建任务"
+  },
+  "taskDetail": {
+    "notFound": "未找到任务",
+    "backToTasks": "返回任务列表",
+    "articlesSelected": "已选择 {count} 篇文章",
+    "saveDraft": "保存草稿",
+    "generateContent": "生成内容",
+    "regenerate": "重新生成",
+    "sourceArticles": "来源文章",
+    "article": "文章",
+    "write": "撰写",
+    "preview": "预览",
+    "contentPlaceholder": "生成的内容将显示在这里..."
+  },
+  "settings": {
+    "title": "设置",
+    "subtitle": "管理偏好设置和系统配置。",
+    "general": "常规",
+    "system": "系统",
+    "appearance": "外观",
+    "customizeLook": "自定义 Curamo 的显示效果。",
+    "systemInfo": "系统信息",
+    "statusServices": "连接服务和环境的状态。",
+    "appVersion": "应用版本",
+    "core": "核心",
+    "database": "数据库",
+    "turso": "Turso / SQLite",
+    "apiServer": "API 服务器",
+    "elysia": "ElysiaJS",
+    "connected": "已连接",
+    "running": "运行中",
+    "targetLanguage": "翻译的目标语言"
+  },
+  "common": {
+    "language": "语言",
+    "theme": "主题",
+    "light": "浅色",
+    "dark": "深色",
+    "system": "系统"
+  }
+}

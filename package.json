@@ -1,0 +1,17 @@
+{
+  "name": "curamo",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun --filter './apps/*' dev",
+    "build": "bun --filter './apps/*' build",
+    "test": "bun --filter './apps/*' test"
+  },
+  "devDependencies": {
+    "bun-types": "latest"
+  }
+}
