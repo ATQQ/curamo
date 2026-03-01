@@ -85,7 +85,9 @@
     "summarize": "Summarize",
     "resummarize": "Re-summarize",
     "showOriginal": "Show Original",
-    "hideSummary": "Hide Summary"
+    "hideSummary": "Hide Summary",
+    "readMore": "Read more",
+    "showLess": "Show less"
   },
   "tasks": {
     "title": "Tasks",

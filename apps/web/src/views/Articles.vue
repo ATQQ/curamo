@@ -7,7 +7,23 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import MarkdownIt from 'markdown-it'
 
-const md = new MarkdownIt()
+const md = new MarkdownIt({
+  html: true,
+  linkify: true,
+  typographer: true
+})
+
+// Custom renderer to open links in new tab
+const defaultRender = md.renderer.rules.link_open || function(tokens, idx, options, env, self) {
+  return self.renderToken(tokens, idx, options)
+}
+
+md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
+  tokens[idx].attrSet('target', '_blank')
+  tokens[idx].attrSet('rel', 'noopener noreferrer')
+  return defaultRender(tokens, idx, options, env, self)
+}
+
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
@@ -37,6 +53,7 @@ const showSummary = ref<Record<string, boolean>>({})
 const summarizing = ref<Record<string, boolean>>({})
 const summaryRawMode = ref<Record<string, boolean>>({})
 const copiedSummary = ref<Record<string, boolean>>({})
+const expandedSummary = ref<Record<string, boolean>>({})
 
 const toggleTranslate = async (article: Article, force = false) => {
   if (!force && showTranslated.value[article.id]) {
@@ -112,6 +129,10 @@ const copySummary = async (article: Article) => {
 
 const toggleSummaryMode = (article: Article) => {
   summaryRawMode.value[article.id] = !summaryRawMode.value[article.id]
+}
+
+const toggleExpandSummary = (article: Article) => {
+  expandedSummary.value[article.id] = !expandedSummary.value[article.id]
 }
 
 
@@ -352,9 +373,59 @@ onMounted(() => {
               </div>
             </div>
             
-            <div class="p-4 text-sm text-slate-600 leading-relaxed">
-              <div v-if="!summaryRawMode[article.id]" class="prose prose-sm max-w-none prose-slate prose-p:my-2 prose-headings:mb-2 prose-headings:mt-4 prose-ul:my-2 prose-li:my-0.5" v-html="md.render(article.aiSummary)"></div>
-              <pre v-else class="whitespace-pre-wrap font-mono text-xs bg-white p-3 rounded border border-slate-200 overflow-x-auto">{{ article.aiSummary }}</pre>
+            <!-- AI Summary Content -->
+            <div class="relative group/summary">
+              <div 
+                class="p-4 text-sm text-slate-600 leading-relaxed transition-all duration-300 ease-in-out"
+                :class="[!expandedSummary[article.id] ? 'max-h-48 overflow-hidden' : 'max-h-none']"
+              >
+                <div 
+                  v-if="!summaryRawMode[article.id]" 
+                  class="prose prose-sm max-w-none prose-slate 
+                    prose-headings:font-bold prose-headings:text-slate-900 
+                    prose-h1:text-xl prose-h2:text-lg prose-h3:text-base 
+                    prose-p:my-2 prose-p:leading-7
+                    prose-a:text-emerald-600 prose-a:no-underline hover:prose-a:underline prose-a:font-medium
+                    prose-blockquote:border-l-4 prose-blockquote:border-emerald-200 prose-blockquote:bg-emerald-50/30 prose-blockquote:py-1 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-slate-600
+                    prose-ul:list-disc prose-ul:pl-5 prose-li:marker:text-emerald-400
+                    prose-ol:list-decimal prose-ol:pl-5 prose-li:marker:text-emerald-600
+                    prose-strong:font-bold prose-strong:text-slate-800
+                    prose-code:text-emerald-700 prose-code:bg-emerald-50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-code:text-[0.85em]
+                    prose-pre:bg-slate-900 prose-pre:text-slate-50 prose-pre:rounded-lg prose-pre:p-4
+                    prose-img:rounded-lg prose-img:shadow-sm prose-img:border prose-img:border-slate-100
+                    prose-hr:border-slate-200 prose-hr:my-6" 
+                  v-html="md.render(article.aiSummary)"
+                  @click="!expandedSummary[article.id] ? toggleExpandSummary(article) : null"
+                  :class="{ 'cursor-pointer': !expandedSummary[article.id] }"
+                ></div>
+                <pre v-else class="whitespace-pre-wrap font-mono text-xs bg-white p-3 rounded border border-slate-200 overflow-x-auto">{{ article.aiSummary }}</pre>
+              </div>
+
+              <!-- Gradient Mask (only when collapsed) -->
+              <div 
+                v-if="!expandedSummary[article.id]" 
+                class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-slate-50 via-slate-50/80 to-transparent pointer-events-none flex items-end justify-center pb-2"
+              >
+              </div>
+
+              <!-- Expand/Collapse Button -->
+              <div class="flex justify-center mt-2 pb-1 relative z-10">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="h-6 text-xs text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full px-3 transition-all"
+                  @click.stop="toggleExpandSummary(article)"
+                >
+                  <span v-if="!expandedSummary[article.id]" class="flex items-center">
+                    {{ t('articles.readMore') || 'Read more' }}
+                    <ChevronDown class="ml-1 h-3 w-3" />
+                  </span>
+                  <span v-else class="flex items-center">
+                    {{ t('articles.showLess') || 'Show less' }}
+                    <ChevronUp class="ml-1 h-3 w-3" />
+                  </span>
+                </Button>
+              </div>
             </div>
           </div>
         </div>

@@ -85,7 +85,9 @@
     "summarize": "总结",
     "resummarize": "重新总结",
     "showOriginal": "显示原文",
-    "hideSummary": "收起总结"
+    "hideSummary": "收起总结",
+    "readMore": "阅读更多",
+    "showLess": "收起内容"
   },
   "tasks": {
     "title": "精选任务",
