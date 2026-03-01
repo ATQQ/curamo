@@ -1,0 +1,200 @@
+.md-transform-wrapper {
+  color: hsl(var(--foreground));
+  font-family: inherit;
+  line-height: 1.75;
+  word-wrap: break-word;
+}
+
+/* Headings */
+.md-transform-wrapper h1,
+.md-transform-wrapper h2,
+.md-transform-wrapper h3,
+.md-transform-wrapper h4,
+.md-transform-wrapper h5,
+.md-transform-wrapper h6 {
+  margin-top: 2em;
+  margin-bottom: 1em;
+  font-weight: 600;
+  line-height: 1.25;
+  color: hsl(var(--foreground));
+}
+
+.md-transform-wrapper h1 {
+  font-size: 2.25em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.md-transform-wrapper h2 {
+  font-size: 1.75em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.md-transform-wrapper h3 {
+  font-size: 1.5em;
+}
+
+.md-transform-wrapper h4 {
+  font-size: 1.25em;
+}
+
+.md-transform-wrapper h5 {
+  font-size: 1em;
+}
+
+.md-transform-wrapper h6 {
+  font-size: 0.875em;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Paragraphs and Inline Elements */
+.md-transform-wrapper p {
+  margin-top: 1.25em;
+  margin-bottom: 1.25em;
+}
+
+.md-transform-wrapper strong {
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.md-transform-wrapper em {
+  font-style: italic;
+}
+
+.md-transform-wrapper a {
+  color: hsl(var(--primary));
+  text-decoration: none;
+  font-weight: 500;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
+}
+
+.md-transform-wrapper a:hover {
+  border-bottom-color: hsl(var(--primary));
+}
+
+/* Lists */
+.md-transform-wrapper ul,
+.md-transform-wrapper ol {
+  margin-top: 1.25em;
+  margin-bottom: 1.25em;
+  padding-left: 1.625em;
+}
+
+.md-transform-wrapper ul {
+  list-style-type: disc;
+}
+
+.md-transform-wrapper ol {
+  list-style-type: decimal;
+}
+
+.md-transform-wrapper li {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.md-transform-wrapper li > p {
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+}
+
+/* Blockquotes */
+.md-transform-wrapper blockquote {
+  margin-top: 1.6em;
+  margin-bottom: 1.6em;
+  padding-left: 1em;
+  font-style: italic;
+  border-left: 4px solid hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+}
+
+/* Code */
+.md-transform-wrapper code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.875em;
+  padding: 0.2em 0.4em;
+  border-radius: calc(var(--radius) - 2px);
+  background-color: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.md-transform-wrapper pre {
+  margin-top: 1.7142857em;
+  margin-bottom: 1.7142857em;
+  padding: 1em;
+  overflow-x: auto;
+  border-radius: var(--radius);
+  background-color: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
+}
+
+.md-transform-wrapper pre code {
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
+  color: inherit;
+  font-size: 0.875em;
+  line-height: 1.7142857;
+}
+
+/* Horizontal Rule */
+.md-transform-wrapper hr {
+  margin-top: 3em;
+  margin-bottom: 3em;
+  border: 0;
+  border-top: 1px solid hsl(var(--border));
+}
+
+/* Tables */
+.md-transform-wrapper table {
+  width: 100%;
+  table-layout: auto;
+  text-align: left;
+  margin-top: 2em;
+  margin-bottom: 2em;
+  font-size: 0.875em;
+  line-height: 1.7142857;
+  border-collapse: collapse;
+}
+
+.md-transform-wrapper thead {
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.md-transform-wrapper th {
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  padding-right: 0.75em;
+  padding-bottom: 0.75em;
+  padding-left: 0.75em;
+}
+
+.md-transform-wrapper td {
+  padding-top: 0.75em;
+  padding-right: 0.75em;
+  padding-bottom: 0.75em;
+  padding-left: 0.75em;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.md-transform-wrapper tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Images */
+.md-transform-wrapper img {
+  margin-top: 2em;
+  margin-bottom: 2em;
+  border-radius: var(--radius);
+  max-width: 100%;
+  height: auto;
+  display: block; /* Avoid inline spacing issues */
+}
+
+/* Checkboxes (Task Lists) */
+.md-transform-wrapper input[type="checkbox"] {
+  margin-right: 0.5em;
+}

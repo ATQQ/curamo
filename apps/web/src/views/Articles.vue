@@ -393,7 +393,7 @@ onMounted(() => {
                     prose-code:text-emerald-700 prose-code:bg-emerald-50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-code:text-[0.85em]
                     prose-pre:bg-slate-900 prose-pre:text-slate-50 prose-pre:rounded-lg prose-pre:p-4
                     prose-img:rounded-lg prose-img:shadow-sm prose-img:border prose-img:border-slate-100
-                    prose-hr:border-slate-200 prose-hr:my-6" 
+                    prose-hr:border-slate-200 prose-hr:my-6 md-transform-wrapper" 
                   v-html="md.render(article.aiSummary)"
                   @click="!expandedSummary[article.id] ? toggleExpandSummary(article) : null"
                   :class="{ 'cursor-pointer': !expandedSummary[article.id] }"
@@ -433,3 +433,6 @@ onMounted(() => {
     </div>
   </div>
 </template>
+<style lang="css">
+@import './styles/articles.css';
+</style>
