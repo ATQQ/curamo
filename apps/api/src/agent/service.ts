@@ -1,6 +1,5 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { StringOutputParser } from "@langchain/core/output_parsers";
 import { CheerioWebBaseLoader } from "@langchain/community/document_loaders/web/cheerio";
 
 // Initialize the model
@@ -17,6 +16,51 @@ const model = new ChatOpenAI({
 });
 
 export class AgentService {
+  /**
+   * 通过 Jina Reader API 或 Cheerio 抓取文章正文，返回干净的文本内容
+   */
+  async fetchArticleContent(url: string): Promise<string | null> {
+    // 1. Jina Reader API（优先）
+    try {
+      const jinaUrl = `https://r.jina.ai/${url}`;
+      const headers: Record<string, string> = {
+        'Accept': 'text/plain',
+        'X-Return-Format': 'markdown',
+        'X-No-Cache': 'true',
+      };
+      if (process.env.JINA_API_KEY) {
+        headers['Authorization'] = `Bearer ${process.env.JINA_API_KEY}`;
+      }
+      const resp = await fetch(jinaUrl, {
+        headers,
+        signal: AbortSignal.timeout(20000),
+      });
+      if (resp.ok) {
+        const text = await resp.text();
+        if (text.trim().length > 100) {
+          console.log(`[Jina] fetched ${text.length} chars for ${url}`);
+          return text;
+        }
+      }
+    } catch (e) {
+      console.warn('[Jina] Reader failed, falling back to Cheerio:', e);
+    }
+
+    // 2. Cheerio 兜底，优先匹配语义化正文标签
+    try {
+      const loader = new CheerioWebBaseLoader(url, {
+        selector: "article, main, [role='main'], .post-content, .article-content, .entry-content, .content, body",
+      });
+      const docs = await loader.load();
+      const text = docs.map(doc => doc.pageContent).join('\n');
+      console.log(`[Cheerio] fetched ${text.length} chars for ${url}`);
+      return text || null;
+    } catch (e) {
+      console.error('[Cheerio] Error fetching content:', e);
+      return null;
+    }
+  }
+
   async translateTitle(title: string, targetLang: string) {
     console.log(`Translating title: ${title} to ${targetLang}`);
     const prompt = `Translate the following article title to ${targetLang}. Only return the translated title, no other text.
@@ -35,65 +79,54 @@ Title: ${title}`;
     }
   }
 
-  async summarizeContent(url: string, content?: string, targetLang?: string) {
+  async summarizeContent(
+    url: string, 
+    content?: string, 
+    targetLang?: string, 
+    templateContent?: string, 
+    extraPrompt?: string
+  ) {
     console.log(`Summarizing content for ${url} in ${targetLang}`);
     
     let textToSummarize = content;
 
     if (!textToSummarize) {
-      try {
-        const loader = new CheerioWebBaseLoader(url, {
-          selector: "body", // Select the main content
-        });
-        const docs = await loader.load();
-        
-        // Enhance content with links
-        // We want to keep the hrefs for context
-        // This is a simple approximation. A better approach would be to use a more sophisticated
-        // HTML to Markdown converter like turndown or similar, but for now we rely on 
-        // CheerioWebBaseLoader's ability or just text. 
-        // Actually CheerioWebBaseLoader by default returns text. 
-        // Let's try to get some links if possible or just rely on the text.
-        // For a better summary with links, we might need to parse HTML and extract links.
-        // But for now, let's just stick to the text and hope LLM can infer some if they are in text.
-        // Wait, the user wants "external links" to be preserved and clickable.
-        // Standard text extraction loses links. 
-        // Let's use a simple trick: ask LLM to format output with markdown links if it detects any URLs in the text
-        // OR we can try to fetch HTML and let LLM parse it (expensive).
-        
-        // BETTER APPROACH: Use a custom selector or transformer to keep links in text
-        // For now, let's just trust the loader's text, but we can append the source URL.
-        
-        textToSummarize = docs.map(doc => doc.pageContent).join('\n');
-      } catch (e) {
-        console.error("Error fetching content:", e);
-        return "Failed to fetch content for summarization.";
-      }
+      const fetched = await this.fetchArticleContent(url);
+      if (!fetched) return "Failed to fetch content for summarization.";
+      textToSummarize = fetched;
     }
 
-    if (!textToSummarize) {
+    if (!textToSummarize.trim()) {
       return "No content available to summarize.";
     }
 
-    // Truncate if too long
-    const truncatedText = textToSummarize.substring(0, 10000); 
+    // 提高上限至 50000 字符，避免极端情况下超出模型上下文
+    const MAX_CHARS = 50000;
+    console.log(`Content length: ${textToSummarize.length} chars`);
+    const truncatedText = textToSummarize.length > MAX_CHARS
+      ? textToSummarize.substring(0, MAX_CHARS) + '\n\n[Content truncated due to length]'
+      : textToSummarize;
 
-    const prompt = `Please provide a comprehensive summary of the following article content in ${targetLang || 'the original language'}. 
-    
-Requirements:
-1. Use Markdown format.
-2. Structure the summary with clear headings (##), bullet points, and bold text for emphasis.
-3. If the text contains any mentions of external resources, tools, or references, please try to include them as Markdown links if the URL is explicit in the text.
-4. If the source URL is provided, include it at the bottom as "Source".
+    const outputLang = targetLang || '中文';
 
-Source URL: ${url}
+    let instructions = templateContent
+      ? `你是一位专业的技术周刊编辑。请根据以下模板格式，对文章内容进行总结，用 ${outputLang} 输出。严格遵循模板结构，不要添加模板之外的内容。\n\n输出模板：\n${templateContent}`
+      : `你是一位专业的技术周刊编辑。请用 ${outputLang} 对以下文章进行简洁总结（2-4句话），突出核心价值和亮点，适合放入技术周刊供读者快速了解。只输出摘要正文，不要输出标题或链接。`;
 
-Content:
+    if (extraPrompt) {
+      instructions = `${instructions}\n\n额外要求：${extraPrompt}`;
+    }
+
+    const prompt = `${instructions}
+
+来源链接：${url}
+
+文章内容：
 ${truncatedText}`;
 
     try {
       const messages = [
-        new SystemMessage("You are a helpful assistant that summarizes articles."),
+        new SystemMessage("你是一位专业的技术周刊编辑，擅长用简洁的中文提炼技术文章的核心价值。"),
         new HumanMessage(prompt),
       ];
       const response = await model.invoke(messages);
@@ -104,39 +137,50 @@ ${truncatedText}`;
     }
   }
 
-  async generateDraft(taskId: string, articles: any[], template: string) {
+  async generateDraft(taskId: string, articles: any[], templateContent: string, templatePrompt?: string) {
     console.log(`Generating draft for task ${taskId}`);
-    
-    // Construct the prompt
-    const articlesText = articles.map((a, i) => 
-      `Article ${i+1}:\nTitle: ${a.title}\nContent: ${a.content || a.aiSummary || 'No content'}`
-    ).join('\n\n');
-    
-    const prompt = `
-You are a professional content curator.
-Your task is to generate a newsletter draft based on the following articles and template.
 
-Template:
-${template}
+    const articlesText = articles.map((a, i) => {
+      const title = a.translatedTitle || a.title;
+      const summary = a.aiSummary || (a.content ? a.content.substring(0, 800) : '暂无摘要');
+      return `文章 ${i + 1}:\n标题：${title}\n链接：${a.url}\n摘要：${summary}`;
+    }).join('\n\n---\n\n');
 
-Articles:
-${articlesText}
+    const baseSystemPrompt = `你是一位专业的技术周刊编辑，擅长将零散技术文章整理成结构清晰、面向开发者的高质量周刊内容。
 
-Please output the final Markdown content.
-    `;
+【分类规则】
+- 🔥强烈推荐：本周最值得阅读的内容（1-3篇），具有重大价值、突破性意义或强烈的实用性
+- 🔧开源工具&技术资讯：新发布的开源项目、框架、库、SDK 或重要技术动态
+- 📚教程&文章：技术教程、深度分析、最佳实践、架构设计类内容
+- 🤖AI工具&资讯：AI 相关的工具、模型发布、产品更新和行业动态
+
+【写作规范】
+1. 每篇文章摘要控制在 2-4 句话，简洁专业，突出核心价值
+2. 标题优先使用中文翻译版本，保留文章原始 URL 作为链接
+3. 摘要用中文书写，专业术语、产品名、框架名可保留英文
+4. 同一分类内的文章按重要程度降序排列
+5. 某个分类若无合适文章则省略该分类，不要保留空分类
+6. 严格按模板格式输出，不添加任何前言、解释或结尾说明`;
+
+    const systemPrompt = templatePrompt
+      ? `${baseSystemPrompt}\n\n【额外要求】\n${templatePrompt}`
+      : baseSystemPrompt;
+
+    const userPrompt = `请将以下文章整理成周刊草稿，严格遵循下方模板的格式和分区结构，直接输出完整的 Markdown 内容。
+
+【输出模板】
+${templateContent}
+
+【文章列表】
+${articlesText}`;
 
     try {
-      // In a real scenario, we might want to use a chain or agent with tools.
-      // For generation, a direct call might be sufficient or a simple chain.
       const messages = [
-        new SystemMessage("You are a helpful assistant that curates content."),
-        new HumanMessage(prompt),
+        new SystemMessage(systemPrompt),
+        new HumanMessage(userPrompt),
       ];
 
-      // For streaming, we would return a stream.
-      // Here we just await for simplicity as a starting point.
       const response = await model.invoke(messages);
-      
       return response.content;
     } catch (error) {
       console.error("Error generating draft:", error);

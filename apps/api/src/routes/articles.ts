@@ -1,6 +1,6 @@
 import { Elysia, t } from 'elysia';
 import { db } from '../db';
-import { articles, settings } from '../db/schema';
+import { articles, settings, templates } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { agentService } from '../agent/service';
 
@@ -40,7 +40,39 @@ export const articlesRoutes = new Elysia({ prefix: '/articles' })
       targetLang = setting?.value || 'Chinese';
     }
 
-    const summary = await agentService.summarizeContent(article.url, article.content || undefined, targetLang);
+    let templateContent = undefined;
+    let extraPrompt = body.extraPrompt;
+    
+    if (body.templateId) {
+      const template = await db.select().from(templates).where(eq(templates.id, body.templateId)).get();
+      if (template) {
+        templateContent = template.contentPattern;
+        if (template.prompt) {
+          extraPrompt = extraPrompt ? `${template.prompt}\n\n${extraPrompt}` : template.prompt;
+        }
+      }
+    }
+
+    // 若 refetchContent=true，忽略缓存内容，重新从原始 URL 抓取并更新 DB
+    let contentToUse = article.content || undefined;
+    if (body.refetchContent) {
+      console.log(`[Summarize] Refetching content for article ${id}`);
+      const freshContent = await agentService.fetchArticleContent(article.url);
+      if (freshContent) {
+        contentToUse = freshContent;
+        await db.update(articles)
+          .set({ content: freshContent })
+          .where(eq(articles.id, id));
+      }
+    }
+
+    const summary = await agentService.summarizeContent(
+      article.url, 
+      contentToUse, 
+      targetLang,
+      templateContent,
+      extraPrompt
+    );
     
     await db.update(articles)
       .set({ aiSummary: summary })
@@ -49,7 +81,10 @@ export const articlesRoutes = new Elysia({ prefix: '/articles' })
     return { aiSummary: summary };
   }, {
     body: t.Object({
-      targetLang: t.Optional(t.String())
+      targetLang: t.Optional(t.String()),
+      templateId: t.Optional(t.String()),
+      extraPrompt: t.Optional(t.String()),
+      refetchContent: t.Optional(t.Boolean()),
     })
   })
   .get('/', async ({ query }) => {

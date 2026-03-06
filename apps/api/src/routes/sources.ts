@@ -19,6 +19,19 @@ export const sourcesRoutes = new Elysia({ prefix: '/sources' })
       config: t.Optional(t.Object({})), // Accept any JSON object
     })
   })
+  .post('/sync', async () => {
+    const allSources = await db.select().from(sources).all();
+    
+    // Sync all sources and wait for completion
+    const results = await Promise.allSettled(allSources.map(source => syncSource(source)));
+    
+    const rejected = results.filter(r => r.status === 'rejected');
+    if (rejected.length > 0) {
+      console.error(`Failed to sync ${rejected.length} sources`);
+    }
+    
+    return { success: true, message: 'Sync completed for all sources', count: allSources.length };
+  })
   .delete('/:id', async ({ params: { id } }) => {
     // Delete associated articles first
     await db.delete(articles).where(eq(articles.sourceId, id));
@@ -38,8 +51,12 @@ export const sourcesRoutes = new Elysia({ prefix: '/sources' })
       throw new Error('Source not found');
     }
     
-    // Asynchronously sync
-    syncSource(source).catch(err => console.error(err));
-    
-    return { success: true, message: 'Sync started' };
+    // Sync and wait for completion
+    try {
+      await syncSource(source);
+      return { success: true, message: 'Sync completed' };
+    } catch (err) {
+      console.error(err);
+      throw new Error('Sync failed');
+    }
   });

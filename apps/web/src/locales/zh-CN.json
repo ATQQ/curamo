@@ -52,6 +52,7 @@
     "noSources": "暂无订阅源",
     "getStarted": "添加您的第一个 RSS 源或网站来源。",
     "syncing": "同步中...",
+    "syncAll": "同步所有",
     "lastSynced": "上次同步: {date}",
     "neverSynced": "从未同步",
     "name": "名称",
@@ -87,7 +88,11 @@
     "showOriginal": "显示原文",
     "hideSummary": "收起总结",
     "readMore": "阅读更多",
-    "showLess": "收起内容"
+    "showLess": "收起内容",
+    "summarizeOptions": "总结选项",
+    "extraPromptPlaceholder": "例如：重点提炼关键结论...",
+    "refetchContent": "重新抓取原文内容",
+    "refetchContentHint": "忽略缓存，从原始链接重新获取最新内容后再生成总结"
   },
   "tasks": {
     "title": "精选任务",
@@ -136,13 +141,31 @@
     "elysia": "ElysiaJS",
     "connected": "已连接",
     "running": "运行中",
-    "targetLanguage": "翻译的目标语言"
+    "targetLanguage": "翻译的目标语言",
+    "summaryTemplates": "总结模板",
+    "manageTemplates": "管理您的 AI 总结模板。",
+    "templates": "模板管理",
+    "noTemplates": "暂无模板。创建一个开始使用。",
+    "hasCustomPrompt": "包含自定义提示词",
+    "markdownTemplate": "Markdown 模板",
+    "aiPrompt": "AI 指令（可选）",
+    "extraPrompt": "额外指令",
+    "summaryTemplate": "选择模板",
+    "defaultTemplate": "默认模板",
+    "defaultTemplateDesc": "总结文章时将自动预选此模板。"
   },
   "common": {
     "language": "语言",
     "theme": "主题",
     "light": "浅色",
     "dark": "深色",
-    "system": "系统"
+    "system": "系统",
+    "create": "新建",
+    "save": "保存",
+    "cancel": "取消",
+    "name": "名称",
+    "default": "默认",
+    "none": "无",
+    "confirmDelete": "确定要删除此模板吗？"
   }
 }

@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Plus, Loader2, Rss, Globe, CheckCircle2, AlertCircle, Trash2, Eye } from 'lucide-vue-next'
+import { Plus, Loader2, Rss, Globe, CheckCircle2, AlertCircle, Trash2, Eye, RefreshCw } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import client from '@/api/client'
 
@@ -22,6 +22,7 @@ const sources = ref<Source[]>([])
 const isLoading = ref(true)
 const isAdding = ref(false)
 const isSubmitting = ref(false)
+const isSyncingAll = ref(false)
 const syncingSources = ref<Set<string>>(new Set())
 const deletingSourceId = ref<string | null>(null)
 
@@ -62,6 +63,23 @@ const handleAddSource = async () => {
   }
 }
 
+const handleSyncAll = async () => {
+  if (isSyncingAll.value || sources.value.length === 0) return
+  
+  isSyncingAll.value = true
+  try {
+    const { error } = await client.sources.sync.post()
+    if (error) throw error
+    
+    // Refresh sources list immediately after sync completes
+    await fetchSources()
+  } catch (err) {
+    console.error('Failed to sync all sources:', err)
+  } finally {
+    isSyncingAll.value = false
+  }
+}
+
 const handleSync = async (id: string) => {
   if (syncingSources.value.has(id)) return
   
@@ -73,7 +91,7 @@ const handleSync = async (id: string) => {
     setTimeout(() => {
         syncingSources.value.delete(id)
         fetchSources() // Refresh to update lastSyncedAt if possible
-    }, 2000)
+    }, 1000)
   } catch (err) {
     console.error('Failed to sync source:', err)
     syncingSources.value.delete(id)
@@ -109,10 +127,21 @@ onMounted(() => {
         <h1 class="text-3xl font-bold tracking-tight text-slate-900">{{ $t('sources.title') }}</h1>
         <p class="text-slate-500 mt-1">{{ $t('sources.subtitle') }}</p>
       </div>
-      <Button @click="isAdding = true" class="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
-        <Plus class="mr-2 h-4 w-4" />
-        {{ $t('sources.addSource') }}
-      </Button>
+      <div class="flex items-center gap-3">
+        <Button 
+          variant="outline" 
+          @click="handleSyncAll" 
+          :disabled="isSyncingAll || sources.length === 0"
+          class="text-slate-600 hover:text-emerald-600 hover:bg-emerald-50"
+        >
+          <RefreshCw :class="['mr-2 h-4 w-4', { 'animate-spin': isSyncingAll }]" />
+          {{ isSyncingAll ? ($t('sources.syncing') || 'Syncing...') : ($t('sources.syncAll') || 'Sync All') }}
+        </Button>
+        <Button @click="isAdding = true" class="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
+          <Plus class="mr-2 h-4 w-4" />
+          {{ $t('sources.addSource') }}
+        </Button>
+      </div>
     </div>
 
     <!-- Loading State -->
@@ -167,7 +196,7 @@ onMounted(() => {
         
         <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
           <span>{{ source.type.toUpperCase() }}</span>
-          <span v-if="source.lastSyncedAt">{{ $t('sources.lastSynced', { date: new Date(source.lastSyncedAt).toLocaleDateString() }) }}</span>
+          <span v-if="source.lastSyncedAt">{{ $t('sources.lastSynced', { date: new Date(source.lastSyncedAt).toLocaleString() }) }}</span>
           <span v-else>{{ $t('sources.neverSynced') }}</span>
         </div>
       </div>

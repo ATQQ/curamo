@@ -35,6 +35,7 @@ export const templates = sqliteTable('templates', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text('name').notNull(),
   contentPattern: text('content_pattern').notNull(),
+  prompt: text('prompt'),
 });
 
 export const tasks = sqliteTable('tasks', {

@@ -2,11 +2,12 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
-import { Settings, Globe, Moon, Sun, Monitor, Cpu, Server, Database, Languages } from 'lucide-vue-next'
+import { Settings, Globe, Moon, Sun, Monitor, Cpu, Server, Database, Languages, FileText, Plus, Trash2, Edit2, Save, X, MessageSquare } from 'lucide-vue-next'
 import client from '@/api/client'
 
 const { locale, t } = useI18n()
 const activeTab = ref('general')
+const defaultTemplateId = ref('')
 
 const targetLanguage = ref('Chinese')
 const targetLanguages = [
@@ -23,16 +24,96 @@ const languages = [
 ]
 
 const fetchSettings = async () => {
-  const { data } = await client.settings.index.get()
+  const { data } = await client.settings.get()
   if (data && Array.isArray(data)) {
     const langSetting = data.find((s: any) => s.key === 'target_language')
     if (langSetting) targetLanguage.value = langSetting.value
+
+    const defaultTemplateSetting = data.find((s: any) => s.key === 'default_template_id')
+    if (defaultTemplateSetting) defaultTemplateId.value = defaultTemplateSetting.value
   }
+}
+
+const templates = ref<any[]>([])
+const isEditingTemplate = ref(false)
+const currentTemplate = ref<any>({
+  name: '',
+  contentPattern: '',
+  prompt: ''
+})
+
+const fetchTemplates = async () => {
+  try {
+    const { data } = await client.templates.get()
+    if (data) {
+      templates.value = data
+    }
+  } catch (err) {
+    console.error('Failed to fetch templates:', err)
+  }
+}
+
+const saveTemplate = async () => {
+  try {
+    if (currentTemplate.value.id) {
+      await client.templates({ id: currentTemplate.value.id }).put({
+        name: currentTemplate.value.name,
+        contentPattern: currentTemplate.value.contentPattern,
+        prompt: currentTemplate.value.prompt
+      })
+    } else {
+      await client.templates.post({
+        name: currentTemplate.value.name,
+        contentPattern: currentTemplate.value.contentPattern,
+        prompt: currentTemplate.value.prompt
+      })
+    }
+    isEditingTemplate.value = false
+    fetchTemplates()
+  } catch (err) {
+    console.error('Failed to save template:', err)
+  }
+}
+
+const deleteTemplate = async (id: string) => {
+  if (confirm(t('common.confirmDelete') || 'Are you sure?')) {
+    try {
+      await (client as any).templates({ id }).delete()
+      fetchTemplates()
+    } catch (err) {
+      console.error('Failed to delete template:', err)
+    }
+  }
+}
+
+const editTemplate = (template: any) => {
+  currentTemplate.value = { ...template }
+  isEditingTemplate.value = true
+}
+
+const createTemplate = () => {
+  currentTemplate.value = {
+    name: '',
+    contentPattern: '## Summary\n\n- Point 1\n- Point 2',
+    prompt: ''
+  }
+  isEditingTemplate.value = true
+}
+
+const cancelEdit = () => {
+  isEditingTemplate.value = false
+}
+
+const saveDefaultTemplate = async () => {
+  await client.settings.put({
+    key: 'default_template_id',
+    value: defaultTemplateId.value
+  })
 }
 
 const saveTargetLanguage = async (lang: string) => {
   targetLanguage.value = lang
-  await client.settings.index.put({
+  await client.settings.put({
     key: 'target_language',
     value: lang
   })
@@ -40,6 +121,7 @@ const saveTargetLanguage = async (lang: string) => {
 
 onMounted(() => {
   fetchSettings()
+  fetchTemplates()
 })
 
 const themes = [
@@ -101,6 +183,14 @@ const setTheme = (theme: string) => {
         >
           <Server class="mr-3 h-4 w-4" />
           {{ t('settings.system') }}
+        </button>
+        <button 
+          @click="activeTab = 'templates'"
+          class="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
+          :class="activeTab === 'templates' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'"
+        >
+          <FileText class="mr-3 h-4 w-4" />
+          {{ t('settings.templates') || 'Templates' }}
         </button>
       </div>
 
@@ -221,6 +311,90 @@ const setTheme = (theme: string) => {
                   <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
                     {{ t('settings.running') }}
                   </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Template Settings -->
+        <div v-if="activeTab === 'templates'" class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+              <div>
+                <h2 class="text-lg font-medium text-slate-900">{{ t('settings.summaryTemplates') || 'Summary Templates' }}</h2>
+                <p class="text-sm text-slate-500 mt-1">{{ t('settings.manageTemplates') || 'Manage your AI summary templates' }}</p>
+              </div>
+              <Button v-if="!isEditingTemplate" @click="createTemplate" size="sm" class="bg-emerald-600 hover:bg-emerald-700 text-white">
+                <Plus class="h-4 w-4 mr-2" />
+                {{ t('common.create') || 'Create' }}
+              </Button>
+            </div>
+            
+            <div class="p-6">
+              <!-- List Mode -->
+              <div v-if="!isEditingTemplate" class="space-y-4">
+                <div v-if="templates.length > 0" class="bg-slate-50 p-4 rounded-lg border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 class="text-sm font-medium text-slate-900">{{ t('settings.defaultTemplate') || 'Default Template' }}</h3>
+                    <p class="text-xs text-slate-500">{{ t('settings.defaultTemplateDesc') || 'This template will be pre-selected when summarizing articles.' }}</p>
+                  </div>
+                  <select v-model="defaultTemplateId" @change="saveDefaultTemplate" class="w-full sm:w-auto min-w-[200px] rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white">
+                    <option value="">{{ t('common.none') || 'None (Default)' }}</option>
+                    <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}</option>
+                  </select>
+                </div>
+
+                <div v-if="templates.length === 0" class="text-center py-8 text-slate-500">
+                  {{ t('settings.noTemplates') || 'No templates found. Create one to get started.' }}
+                </div>
+                <div v-else class="grid gap-4">
+                  <div v-for="template in templates" :key="template.id" class="flex items-start justify-between p-4 rounded-lg border border-slate-200 hover:border-emerald-200 hover:bg-slate-50 transition-all">
+                    <div>
+                      <h3 class="font-medium text-slate-900">{{ template.name }}</h3>
+                      <p class="text-xs text-slate-500 mt-1 line-clamp-1">{{ template.contentPattern }}</p>
+                      <div v-if="template.prompt" class="mt-2 flex items-center text-xs text-emerald-600">
+                        <MessageSquare class="h-3 w-3 mr-1" />
+                        {{ t('settings.hasCustomPrompt') || 'Has custom prompt' }}
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <Button variant="ghost" size="icon" @click="editTemplate(template)" class="h-8 w-8 text-slate-400 hover:text-emerald-600">
+                        <Edit2 class="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" @click="deleteTemplate(template.id)" class="h-8 w-8 text-slate-400 hover:text-red-600">
+                        <Trash2 class="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Edit Mode -->
+              <div v-else class="space-y-4">
+                <div class="space-y-3">
+                  <label class="block text-sm font-medium text-slate-700">{{ t('common.name') || 'Name' }}</label>
+                  <input v-model="currentTemplate.name" type="text" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" placeholder="e.g. Detailed Summary" />
+                </div>
+
+                <div class="space-y-3">
+                  <label class="block text-sm font-medium text-slate-700">{{ t('settings.markdownTemplate') || 'Markdown Template' }}</label>
+                  <textarea v-model="currentTemplate.contentPattern" rows="6" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" placeholder="## Title..."></textarea>
+                  <p class="text-xs text-slate-500">The structure the AI should follow.</p>
+                </div>
+
+                <div class="space-y-3">
+                  <label class="block text-sm font-medium text-slate-700">{{ t('settings.aiPrompt') || 'AI Instructions (Optional)' }}</label>
+                  <textarea v-model="currentTemplate.prompt" rows="3" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" placeholder="e.g. Focus on technical details..."></textarea>
+                  <p class="text-xs text-slate-500">Extra instructions for the AI.</p>
+                </div>
+
+                <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                  <Button variant="ghost" @click="cancelEdit">{{ t('common.cancel') || 'Cancel' }}</Button>
+                  <Button @click="saveTemplate" class="bg-emerald-600 hover:bg-emerald-700 text-white">
+                    <Save class="h-4 w-4 mr-2" />
+                    {{ t('common.save') || 'Save' }}
+                  </Button>
                 </div>
               </div>
             </div>

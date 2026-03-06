@@ -70,10 +70,12 @@ export const tasksRoutes = new Elysia({ prefix: '/tasks' })
     }
 
     let templateContent = "";
+    let templatePrompt: string | undefined;
     if (task.templateId) {
         const template = await db.select().from(templates).where(eq(templates.id, task.templateId)).get();
         if (template) {
             templateContent = template.contentPattern;
+            templatePrompt = template.prompt ?? undefined;
         }
     }
     
@@ -91,7 +93,7 @@ export const tasksRoutes = new Elysia({ prefix: '/tasks' })
     console.log(`Generating draft for task ${id} with ${selectedArticles.length} articles`);
     
     // Trigger LangChain generation
-    const content = await agentService.generateDraft(id, selectedArticles, templateContent);
+    const content = await agentService.generateDraft(id, selectedArticles, templateContent, templatePrompt);
 
     // Save as snapshot
     await db.insert(snapshots).values({

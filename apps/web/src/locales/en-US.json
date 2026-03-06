@@ -52,6 +52,7 @@
     "noSources": "No sources yet",
     "getStarted": "Get started by adding your first RSS feed or website source.",
     "syncing": "Syncing...",
+    "syncAll": "Sync All",
     "lastSynced": "Last synced: {date}",
     "neverSynced": "Never synced",
     "name": "Name",
@@ -87,7 +88,11 @@
     "showOriginal": "Show Original",
     "hideSummary": "Hide Summary",
     "readMore": "Read more",
-    "showLess": "Show less"
+    "showLess": "Show less",
+    "summarizeOptions": "Summarize Options",
+    "extraPromptPlaceholder": "e.g. Focus on key takeaways...",
+    "refetchContent": "Re-fetch article content",
+    "refetchContentHint": "Ignore cache and re-fetch the latest content from the original URL before summarizing"
   },
   "tasks": {
     "title": "Tasks",
@@ -139,13 +144,31 @@
     "targetLanguage": "Translated target Language",
     "translate": "Translate",
     "summarize": "Summarize",
-    "showOriginal": "Show Original"
+    "showOriginal": "Show Original",
+    "summaryTemplates": "Summary Templates",
+    "manageTemplates": "Manage your AI summary templates.",
+    "templates": "Templates",
+    "noTemplates": "No templates found. Create one to get started.",
+    "hasCustomPrompt": "Has custom prompt",
+    "markdownTemplate": "Markdown Template",
+    "aiPrompt": "AI Instructions (Optional)",
+    "extraPrompt": "Extra Instructions",
+    "summaryTemplate": "Template",
+    "defaultTemplate": "Default Template",
+    "defaultTemplateDesc": "This template will be pre-selected when summarizing articles."
   },
   "common": {
     "language": "Language",
     "theme": "Theme",
     "light": "Light",
     "dark": "Dark",
-    "system": "System"
+    "system": "System",
+    "create": "Create",
+    "save": "Save",
+    "cancel": "Cancel",
+    "name": "Name",
+    "default": "Default",
+    "none": "None",
+    "confirmDelete": "Are you sure you want to delete this template?"
   }
 }

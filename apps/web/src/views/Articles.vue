@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { ExternalLink, Calendar, CheckSquare, Plus, Loader2, FileText, Languages, Bot, ChevronDown, ChevronUp, RefreshCw, Copy, Check, FileCode, Eye } from 'lucide-vue-next'
+import { ExternalLink, Calendar, CheckSquare, Plus, Loader2, FileText, Languages, Bot, ChevronDown, ChevronUp, RefreshCw, Copy, Check, FileCode, Eye, Settings2 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import client from '@/api/client'
 import { useRouter, useRoute } from 'vue-router'
@@ -55,6 +55,58 @@ const summaryRawMode = ref<Record<string, boolean>>({})
 const copiedSummary = ref<Record<string, boolean>>({})
 const expandedSummary = ref<Record<string, boolean>>({})
 
+// Summary Options State
+const templates = ref<any[]>([])
+const showSummaryOptions = ref(false)
+const targetArticle = ref<Article | null>(null)
+const selectedTemplateId = ref<string>('')
+const defaultTemplateId = ref<string>('')
+const extraPrompt = ref('')
+const refetchContent = ref(false)
+
+const fetchTemplates = async () => {
+  try {
+    const { data } = await client.templates.get()
+    if (data) templates.value = data
+  } catch (err) {
+    console.error('Failed to fetch templates:', err)
+  }
+}
+
+const fetchSettings = async () => {
+  try {
+    const { data } = await client.settings.get()
+    if (data && Array.isArray(data)) {
+      const defaultTemplateSetting = data.find((s: any) => s.key === 'default_template_id')
+      if (defaultTemplateSetting) defaultTemplateId.value = defaultTemplateSetting.value
+    }
+  } catch (err) {
+    console.error('Failed to fetch settings:', err)
+  }
+}
+
+const openSummaryOptions = (article: Article, defaultRefetch = false) => {
+  targetArticle.value = article
+  selectedTemplateId.value = defaultTemplateId.value
+  extraPrompt.value = ''
+  refetchContent.value = defaultRefetch
+  if (templates.value.length === 0) fetchTemplates()
+  showSummaryOptions.value = true
+}
+
+const confirmSummary = () => {
+  if (targetArticle.value) {
+    toggleSummary(
+      targetArticle.value,
+      true,
+      selectedTemplateId.value || undefined,
+      extraPrompt.value || undefined,
+      refetchContent.value
+    )
+  }
+  showSummaryOptions.value = false
+}
+
 const toggleTranslate = async (article: Article, force = false) => {
   if (!force && showTranslated.value[article.id]) {
     showTranslated.value[article.id] = false
@@ -84,20 +136,24 @@ const toggleTranslate = async (article: Article, force = false) => {
   }
 }
 
-const toggleSummary = async (article: Article, force = false) => {
-  if (!force && showSummary.value[article.id]) {
+const toggleSummary = async (article: Article, force = false, templateId?: string, extraPrompt?: string, refetch = false) => {
+  if (!force && showSummary.value[article.id] && !templateId && !extraPrompt) {
     showSummary.value[article.id] = false
     return
   }
 
-  if (!force && article.aiSummary) {
+  if (!force && article.aiSummary && !templateId && !extraPrompt) {
     showSummary.value[article.id] = true
     return
   }
 
   summarizing.value[article.id] = true
   try {
-    const { data } = await (client.articles({ id: article.id }) as any).summarize.post({})
+    const { data } = await (client.articles({ id: article.id }) as any).summarize.post({
+      templateId,
+      extraPrompt,
+      refetchContent: refetch || undefined
+    })
     if (data && data.aiSummary) {
       // Refresh the single article data from server
       const { data: refreshedData } = await client.articles({ id: article.id }).get()
@@ -203,6 +259,7 @@ const createDraftTask = async () => {
 
 onMounted(() => {
   fetchArticles()
+  fetchSettings()
 })
 </script>
 
@@ -312,29 +369,43 @@ onMounted(() => {
               {{ t('articles.retranslate') || 'Re-translate' }}
             </Button>
 
-            <Button 
-              size="sm" 
-              variant="ghost" 
-              class="h-7 px-2 text-xs text-slate-500 hover:text-emerald-600 hover:bg-emerald-50"
-              @click.stop="toggleSummary(article)"
-              :disabled="summarizing[article.id]"
-            >
-              <Loader2 v-if="summarizing[article.id]" class="mr-1 h-3 w-3 animate-spin" />
-              <Bot v-else class="mr-1 h-3 w-3" />
-              {{ showSummary[article.id] ? (t('articles.hideSummary') || 'Hide Summary') : (t('articles.summarize') || 'Summarize') }}
-            </Button>
+            <div class="flex items-center gap-1">
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                class="h-7 px-2 text-xs text-slate-500 hover:text-emerald-600 hover:bg-emerald-50"
+                @click.stop="toggleSummary(article)"
+                :disabled="summarizing[article.id]"
+              >
+                <Loader2 v-if="summarizing[article.id]" class="mr-1 h-3 w-3 animate-spin" />
+                <Bot v-else class="mr-1 h-3 w-3" />
+                {{ showSummary[article.id] ? (t('articles.hideSummary') || 'Hide Summary') : (t('articles.summarize') || 'Summarize') }}
+              </Button>
+              <Button
+                v-if="!summarizing[article.id]"
+                size="sm"
+                variant="ghost"
+                class="h-7 w-7 px-0 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                @click.stop="openSummaryOptions(article)"
+                :title="t('articles.summarizeOptions') || 'Summarize Options'"
+              >
+                <Settings2 class="h-3 w-3" />
+              </Button>
+            </div>
 
-            <Button 
-              v-if="showSummary[article.id]"
-              size="sm" 
-              variant="ghost" 
-              class="h-7 px-2 text-xs text-slate-500 hover:text-emerald-600 hover:bg-emerald-50"
-              @click.stop="toggleSummary(article, true)"
-              :disabled="summarizing[article.id]"
-            >
-              <RefreshCw :class="['mr-1 h-3 w-3', { 'animate-spin': summarizing[article.id] }]" />
-              {{ t('articles.resummarize') || 'Re-summarize' }}
-            </Button>
+            <div v-if="showSummary[article.id]" class="flex items-center gap-1">
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                class="h-7 px-2 text-xs text-slate-500 hover:text-emerald-600 hover:bg-emerald-50"
+                @click.stop="openSummaryOptions(article, true)"
+                :disabled="summarizing[article.id]"
+              >
+                <Loader2 v-if="summarizing[article.id]" class="mr-1 h-3 w-3 animate-spin" />
+                <RefreshCw v-else class="mr-1 h-3 w-3" />
+                {{ t('articles.resummarize') }}
+              </Button>
+            </div>
 
             <a :href="article.url" target="_blank" class="inline-flex items-center justify-center h-7 px-2 rounded-md text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground text-slate-500 hover:text-emerald-600" @click.stop>
               <ExternalLink class="mr-1 h-3 w-3" />
@@ -428,6 +499,58 @@ onMounted(() => {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+    <!-- Summary Options Dialog -->
+    <div v-if="showSummaryOptions" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="showSummaryOptions = false">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
+        <h3 class="text-lg font-semibold text-slate-900 mb-4">{{ t('articles.summarizeOptions') || 'Summarize Options' }}</h3>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">{{ t('settings.summaryTemplate') }}</label>
+            <select v-model="selectedTemplateId" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+              <option value="">{{ t('common.default') }}</option>
+              <option v-for="tpl in templates" :key="tpl.id" :value="tpl.id">{{ tpl.name }}</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">{{ t('settings.extraPrompt') }}</label>
+            <textarea v-model="extraPrompt" rows="3" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" :placeholder="t('articles.extraPromptPlaceholder')"></textarea>
+          </div>
+
+          <!-- 重新抓取原文内容开关 -->
+          <div
+            class="flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors"
+            :class="refetchContent ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'"
+            @click="refetchContent = !refetchContent"
+          >
+            <div class="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors"
+              :class="refetchContent ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300 bg-white'"
+            >
+              <svg v-if="refetchContent" class="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 10 8">
+                <path d="M1 4l3 3 5-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm font-medium" :class="refetchContent ? 'text-emerald-800' : 'text-slate-700'">
+                {{ t('articles.refetchContent') }}
+              </p>
+              <p class="text-xs mt-0.5" :class="refetchContent ? 'text-emerald-600' : 'text-slate-500'">
+                {{ t('articles.refetchContentHint') }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 flex justify-end gap-3">
+          <Button variant="ghost" @click="showSummaryOptions = false">{{ t('common.cancel') || 'Cancel' }}</Button>
+          <Button @click="confirmSummary" class="bg-emerald-600 hover:bg-emerald-700 text-white">
+            <Bot class="mr-2 h-4 w-4" />
+            {{ t('articles.summarize') || 'Summarize' }}
+          </Button>
         </div>
       </div>
     </div>
