@@ -11,6 +11,17 @@ export const sources = sqliteTable('sources', {
   createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const asyncTasks = sqliteTable('async_tasks', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  type: text('type').notNull(), // 'summarize', 'translate', etc.
+  status: text('status', { enum: ['pending', 'processing', 'completed', 'failed'] }).default('pending'),
+  payload: text('payload', { mode: 'json' }), // JSON stored as text
+  result: text('result', { mode: 'json' }), // JSON stored as text
+  error: text('error'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const settings = sqliteTable('settings', {
   key: text('key').primaryKey(),
   value: text('value').notNull(),

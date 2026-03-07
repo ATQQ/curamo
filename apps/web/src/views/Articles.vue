@@ -54,6 +54,54 @@ const summarizing = ref<Record<string, boolean>>({})
 const summaryRawMode = ref<Record<string, boolean>>({})
 const copiedSummary = ref<Record<string, boolean>>({})
 const expandedSummary = ref<Record<string, boolean>>({})
+const generatingTasks = ref<Map<string, string>>(new Map()) // articleId -> taskId
+
+// Poll running tasks
+const checkRunningTasks = async () => {
+  try {
+    const { data } = await client['async-tasks'].get({
+      query: { type: 'summarize', status: 'processing', limit: '100' }
+    })
+    if (data) {
+      data.forEach((task: any) => {
+        if (task.payload?.articleId) {
+          generatingTasks.value.set(task.payload.articleId, task.id)
+        }
+      })
+    }
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+const pollTasks = async () => {
+  if (generatingTasks.value.size === 0) return
+  
+  for (const [articleId, taskId] of generatingTasks.value.entries()) {
+    try {
+      const { data: task } = await client['async-tasks']({ id: taskId }).get()
+      if (task) {
+        if (task.status === 'completed') {
+           generatingTasks.value.delete(articleId)
+           // Refresh article content
+           const { data: article } = await client.articles({ id: articleId }).get()
+           if (article) {
+             const index = articles.value.findIndex(a => a.id === articleId)
+             if (index !== -1) {
+               Object.assign(articles.value[index], article)
+               showSummary.value[articleId] = true
+             }
+           }
+        } else if (task.status === 'failed') {
+           generatingTasks.value.delete(articleId)
+           console.error(`Task ${taskId} failed:`, task.error)
+        }
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+}
 
 // Summary Options State
 const templates = ref<any[]>([])
@@ -137,6 +185,8 @@ const toggleTranslate = async (article: Article, force = false) => {
 }
 
 const toggleSummary = async (article: Article, force = false, templateId?: string, extraPrompt?: string, refetch = false) => {
+  if (generatingTasks.value.has(article.id)) return
+
   if (!force && showSummary.value[article.id] && !templateId && !extraPrompt) {
     showSummary.value[article.id] = false
     return
@@ -150,12 +200,16 @@ const toggleSummary = async (article: Article, force = false, templateId?: strin
   summarizing.value[article.id] = true
   try {
     const { data } = await (client.articles({ id: article.id }) as any).summarize.post({
-      templateId,
+      templateId: templateId || defaultTemplateId.value || undefined,
       extraPrompt,
       refetchContent: refetch || undefined
     })
-    if (data && data.aiSummary) {
-      // Refresh the single article data from server
+    
+    if (data && data.taskId) {
+      generatingTasks.value.set(article.id, data.taskId)
+      // We don't wait for completion here anymore
+    } else if (data && data.aiSummary) {
+      // Fallback for sync response if any
       const { data: refreshedData } = await client.articles({ id: article.id }).get()
       if (refreshedData) {
         Object.assign(article, refreshedData)
@@ -260,6 +314,11 @@ const createDraftTask = async () => {
 onMounted(() => {
   fetchArticles()
   fetchSettings()
+  checkRunningTasks()
+  setInterval(() => {
+    pollTasks()
+    checkRunningTasks()
+  }, 3000)
 })
 </script>
 
@@ -375,11 +434,11 @@ onMounted(() => {
                 variant="ghost" 
                 class="h-7 px-2 text-xs text-slate-500 hover:text-emerald-600 hover:bg-emerald-50"
                 @click.stop="toggleSummary(article)"
-                :disabled="summarizing[article.id]"
+                :disabled="summarizing[article.id] || generatingTasks.has(article.id)"
               >
-                <Loader2 v-if="summarizing[article.id]" class="mr-1 h-3 w-3 animate-spin" />
+                <Loader2 v-if="summarizing[article.id] || generatingTasks.has(article.id)" class="mr-1 h-3 w-3 animate-spin" />
                 <Bot v-else class="mr-1 h-3 w-3" />
-                {{ showSummary[article.id] ? (t('articles.hideSummary') || 'Hide Summary') : (t('articles.summarize') || 'Summarize') }}
+                {{ generatingTasks.has(article.id) ? '生成中...' : (showSummary[article.id] ? (t('articles.hideSummary') || 'Hide Summary') : (t('articles.summarize') || 'Summarize')) }}
               </Button>
               <Button
                 v-if="!summarizing[article.id]"
@@ -399,11 +458,11 @@ onMounted(() => {
                 variant="ghost" 
                 class="h-7 px-2 text-xs text-slate-500 hover:text-emerald-600 hover:bg-emerald-50"
                 @click.stop="openSummaryOptions(article, true)"
-                :disabled="summarizing[article.id]"
+                :disabled="summarizing[article.id] || generatingTasks.has(article.id)"
               >
-                <Loader2 v-if="summarizing[article.id]" class="mr-1 h-3 w-3 animate-spin" />
+                <Loader2 v-if="summarizing[article.id] || generatingTasks.has(article.id)" class="mr-1 h-3 w-3 animate-spin" />
                 <RefreshCw v-else class="mr-1 h-3 w-3" />
-                {{ t('articles.resummarize') }}
+                {{ generatingTasks.has(article.id) ? '生成中...' : t('articles.resummarize') }}
               </Button>
             </div>
 

@@ -51,7 +51,7 @@ const handleNewCuration = () => {
         <router-link 
           to="/" 
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-          active-class="bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+          exact-active-class="bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
         >
           <LayoutDashboard class="w-4 h-4" />
           {{ $t('nav.dashboard') }}

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import { Button } from '@/components/ui/button'
-import { Plus, ArrowUpRight, Clock, FileText, CheckCircle2, Rss } from 'lucide-vue-next'
+import { Plus, ArrowUpRight, Clock, FileText, CheckCircle2, Rss, Loader2 } from 'lucide-vue-next'
 import client from '@/api/client'
 import { useRouter } from 'vue-router'
+import TaskStatusModal from '@/components/TaskStatusModal.vue'
 
 const router = useRouter()
 
@@ -14,19 +15,82 @@ const stats = ref({
   publishedTasks: 0
 })
 
+const systemStatus = ref({
+  rss: { online: false, label: 'RSS 抓取器' },
+  agent: { online: false, label: 'AI Agent (GLM-5)' },
+  db: { online: false, label: 'Database (Turso)' }
+})
+
+const runningTasks = ref<any[]>([])
+const showModal = ref(false)
+const modalType = ref('')
+const modalTitle = ref('')
+let statusInterval: any = null
+
+const groupedTasks = computed(() => {
+  const groups: Record<string, number> = {}
+  runningTasks.value.forEach(task => {
+    groups[task.type] = (groups[task.type] || 0) + 1
+  })
+  return Object.entries(groups).map(([type, count]) => ({
+    type,
+    count,
+    title: type === 'summarize' ? '文章总结任务' : '其他任务'
+  }))
+})
+
+const openTaskModal = (type: string, title: string) => {
+  modalType.value = type
+  modalTitle.value = title
+  showModal.value = true
+}
+
 const recentTasks = ref<any[]>([])
 const isLoading = ref(true)
+
+const checkSystemStatus = async () => {
+  // Check DB connectivity
+  try {
+    // Simple check using articles endpoint
+    await client.articles.get({ query: { limit: '1' } })
+    systemStatus.value.db.online = true
+  } catch {
+    systemStatus.value.db.online = false
+  }
+  
+  // Assume others are online if API is reachable
+  systemStatus.value.agent.online = true
+  systemStatus.value.rss.online = true
+  
+  // Fetch running tasks
+  try {
+    const { data } = await client['async-tasks'].get({
+       query: { status: 'processing', limit: '50' }
+    })
+    if (data) runningTasks.value = data
+  } catch (e) {
+    console.error(e)
+  }
+}
 
 const fetchStats = async () => {
   try {
     // Fetch articles count
-    const { data: articles } = await client.articles.index.get()
+    const { data: articles } = await client.articles.get()
     if (articles) {
       stats.value.totalArticles = (articles as any[]).length
     }
 
+    // Check DB connectivity
+    try {
+      await client.articles.get({ query: { limit: '1' } }) // Use articles endpoint to check DB
+      systemStatus.value.db.online = true
+    } catch {
+      systemStatus.value.db.online = false
+    }
+
     // Fetch tasks stats
-    const { data: tasks } = await client.tasks.index.get()
+    const { data: tasks } = await client.tasks.get()
     if (tasks) {
       const taskList = tasks as any[]
       stats.value.activeTasks = taskList.filter(t => t.status !== 'published').length
@@ -47,6 +111,12 @@ const fetchStats = async () => {
 
 onMounted(() => {
   fetchStats()
+  checkSystemStatus()
+  statusInterval = setInterval(checkSystemStatus, 5000)
+})
+
+onUnmounted(() => {
+  if (statusInterval) clearInterval(statusInterval)
 })
 </script>
 
@@ -167,32 +237,42 @@ onMounted(() => {
       <div class="col-span-3 rounded-xl border border-border/50 bg-card text-card-foreground shadow-sm">
         <div class="p-6 pb-3">
            <h3 class="text-lg font-semibold leading-none tracking-tight">{{ $t('dashboard.systemStatus.title') }}</h3>
-           <p class="text-sm text-muted-foreground mt-1.5">{{ $t('dashboard.systemStatus.engine') }}</p>
+           <p class="text-sm text-muted-foreground mt-1.5">系统状态概览</p>
         </div>
         <div class="p-6 pt-0 space-y-4">
-          <div class="flex items-center justify-between">
+          <div v-for="(status, key) in systemStatus" :key="key" class="flex items-center justify-between">
              <div class="flex items-center gap-2 text-sm">
-                <div class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                <span>{{ $t('dashboard.systemStatus.crawler') }}</span>
+                <div class="h-2 w-2 rounded-full" :class="status.online ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'"></div>
+                <span>{{ status.label }}</span>
              </div>
-             <span class="text-xs text-muted-foreground">{{ $t('dashboard.systemStatus.idle') }}</span>
+             <span class="text-xs font-medium" :class="status.online ? 'text-emerald-600' : 'text-red-600'">
+                {{ status.online ? '在线' : '离线' }}
+             </span>
           </div>
-          <div class="flex items-center justify-between">
-             <div class="flex items-center gap-2 text-sm">
-                <div class="h-2 w-2 rounded-full bg-emerald-500"></div>
-                <span>AI Agent (GLM-5)</span>
+
+          <!-- Async Tasks -->
+          <div v-if="runningTasks.length > 0" class="pt-4 border-t space-y-2">
+             <div class="text-xs font-semibold text-muted-foreground">正在运行的任务</div>
+             <div v-for="taskGroup in groupedTasks" :key="taskGroup.type" 
+                  class="flex items-center justify-between text-sm py-1 cursor-pointer hover:bg-muted/50 rounded px-1 group"
+                  @click="openTaskModal(taskGroup.type, taskGroup.title)">
+                <span class="truncate max-w-[150px] group-hover:text-primary transition-colors">{{ taskGroup.title }}</span>
+                <span class="text-xs text-blue-500 flex items-center gap-1">
+                   <Loader2 class="h-3 w-3 animate-spin" />
+                   {{ taskGroup.count }}个进行中
+                </span>
              </div>
-             <span class="text-xs text-emerald-600 font-medium">{{ $t('dashboard.systemStatus.online') }}</span>
           </div>
-           <div class="flex items-center justify-between">
-             <div class="flex items-center gap-2 text-sm">
-                <div class="h-2 w-2 rounded-full bg-emerald-500"></div>
-                <span>Database (Turso)</span>
-             </div>
-             <span class="text-xs text-emerald-600 font-medium">{{ $t('dashboard.systemStatus.connected') }}</span>
-          </div>
+          
+          <div class="pt-2">
+            <Button variant="ghost" size="sm" class="w-full text-xs h-7" @click="openTaskModal('summarize', '文章总结任务')">
+               查看任务历史
+            </Button>
+         </div>
         </div>
       </div>
     </div>
   </div>
+
+  <TaskStatusModal :open="showModal" @update:open="showModal = $event" :type="modalType" :title="modalTitle" />
 </template>

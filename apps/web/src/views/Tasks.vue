@@ -29,9 +29,9 @@ const newTask = ref({
 
 const fetchTasks = async () => {
   try {
-    const { data, error } = await client.tasks.index.get()
+    const { data, error } = await client.tasks.get()
     if (error) throw error
-    if (data) tasks.value = data as Task[]
+    if (data) tasks.value = data as unknown as Task[]
   } catch (err) {
     console.error('Failed to fetch tasks:', err)
   } finally {
@@ -44,10 +44,10 @@ const handleAddTask = async () => {
   
   isSubmitting.value = true
   try {
-    const { data, error } = await client.tasks.index.post(newTask.value)
+    const { data, error } = await client.tasks.post(newTask.value)
     if (error) throw error
     if (data) {
-      tasks.value.unshift(data as Task)
+      tasks.value.unshift(data as unknown as Task)
       isAdding.value = false
       newTask.value = { title: '' }
       // Optional: Navigate to detail

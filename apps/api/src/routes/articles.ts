@@ -1,8 +1,70 @@
 import { Elysia, t } from 'elysia';
 import { db } from '../db';
-import { articles, settings, templates } from '../db/schema';
+import { articles, settings, templates, asyncTasks } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { agentService } from '../agent/service';
+
+async function runSummarizeTask(taskId: string, articleId: string, options: any) {
+  try {
+    await db.update(asyncTasks).set({ status: 'processing' }).where(eq(asyncTasks.id, taskId));
+
+    const article = await db.select().from(articles).where(eq(articles.id, articleId)).get();
+    if (!article) throw new Error('Article not found');
+
+    let targetLang = options.targetLang;
+    if (!targetLang) {
+      const setting = await db.select().from(settings).where(eq(settings.key, 'target_language')).get();
+      targetLang = setting?.value || 'Chinese';
+    }
+
+    let templateContent = undefined;
+    let extraPrompt = options.extraPrompt;
+    
+    if (options.templateId) {
+      const template = await db.select().from(templates).where(eq(templates.id, options.templateId)).get();
+      if (template) {
+        templateContent = template.contentPattern;
+        if (template.prompt) {
+          extraPrompt = extraPrompt ? `${template.prompt}\n\n${extraPrompt}` : template.prompt;
+        }
+      }
+    }
+
+    let contentToUse = article.content || undefined;
+    if (options.refetchContent) {
+      console.log(`[Summarize] Refetching content for article ${articleId}`);
+      const freshContent = await agentService.fetchArticleContent(article.url);
+      if (freshContent) {
+        contentToUse = freshContent;
+        await db.update(articles)
+          .set({ content: freshContent })
+          .where(eq(articles.id, articleId));
+      }
+    }
+
+    const summary = await agentService.summarizeContent(
+      article.url, 
+      contentToUse, 
+      targetLang,
+      templateContent,
+      extraPrompt
+    );
+    
+    await db.update(articles)
+      .set({ aiSummary: summary })
+      .where(eq(articles.id, articleId));
+
+    await db.update(asyncTasks)
+      .set({ status: 'completed', result: { summary } })
+      .where(eq(asyncTasks.id, taskId));
+      
+  } catch (error: any) {
+    console.error(`Task ${taskId} failed:`, error);
+    await db.update(asyncTasks)
+      .set({ status: 'failed', error: error.message })
+      .where(eq(asyncTasks.id, taskId));
+  }
+}
 
 export const articlesRoutes = new Elysia({ prefix: '/articles' })
   .post('/:id/translate', async ({ params: { id }, body }) => {
@@ -34,51 +96,16 @@ export const articlesRoutes = new Elysia({ prefix: '/articles' })
     const article = await db.select().from(articles).where(eq(articles.id, id)).get();
     if (!article) throw new Error('Article not found');
 
-    let targetLang = body.targetLang;
-    if (!targetLang) {
-      const setting = await db.select().from(settings).where(eq(settings.key, 'target_language')).get();
-      targetLang = setting?.value || 'Chinese';
-    }
+    const [task] = await db.insert(asyncTasks).values({
+      type: 'summarize',
+      status: 'pending',
+      payload: { articleId: id, ...body }
+    }).returning();
 
-    let templateContent = undefined;
-    let extraPrompt = body.extraPrompt;
+    // Trigger async processing (fire and forget)
+    runSummarizeTask(task.id, id, body);
     
-    if (body.templateId) {
-      const template = await db.select().from(templates).where(eq(templates.id, body.templateId)).get();
-      if (template) {
-        templateContent = template.contentPattern;
-        if (template.prompt) {
-          extraPrompt = extraPrompt ? `${template.prompt}\n\n${extraPrompt}` : template.prompt;
-        }
-      }
-    }
-
-    // 若 refetchContent=true，忽略缓存内容，重新从原始 URL 抓取并更新 DB
-    let contentToUse = article.content || undefined;
-    if (body.refetchContent) {
-      console.log(`[Summarize] Refetching content for article ${id}`);
-      const freshContent = await agentService.fetchArticleContent(article.url);
-      if (freshContent) {
-        contentToUse = freshContent;
-        await db.update(articles)
-          .set({ content: freshContent })
-          .where(eq(articles.id, id));
-      }
-    }
-
-    const summary = await agentService.summarizeContent(
-      article.url, 
-      contentToUse, 
-      targetLang,
-      templateContent,
-      extraPrompt
-    );
-    
-    await db.update(articles)
-      .set({ aiSummary: summary })
-      .where(eq(articles.id, id));
-      
-    return { aiSummary: summary };
+    return { taskId: task.id, status: 'pending' };
   }, {
     body: t.Object({
       targetLang: t.Optional(t.String()),
@@ -88,7 +115,7 @@ export const articlesRoutes = new Elysia({ prefix: '/articles' })
     })
   })
   .get('/', async ({ query }) => {
-    const { sourceId } = query as { sourceId?: string };
+    const { sourceId, limit } = query as { sourceId?: string, limit?: string };
     
     // Basic filtering
     let queryBuilder = db.select().from(articles).orderBy(desc(articles.publishedAt));
@@ -96,6 +123,11 @@ export const articlesRoutes = new Elysia({ prefix: '/articles' })
     if (sourceId) {
       // @ts-ignore
       queryBuilder = db.select().from(articles).where(eq(articles.sourceId, sourceId)).orderBy(desc(articles.publishedAt));
+    }
+
+    if (limit) {
+      // @ts-ignore
+      queryBuilder = queryBuilder.limit(parseInt(limit));
     }
     
     return await queryBuilder.all();
