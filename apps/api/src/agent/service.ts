@@ -137,7 +137,7 @@ ${truncatedText}`;
     }
   }
 
-  async generateDraft(taskId: string, articles: any[], templateContent: string, templatePrompt?: string) {
+  async generateDraft(taskId: string, articles: any[], templateContent: string, templatePrompt?: string, extraPrompt?: string) {
     console.log(`Generating draft for task ${taskId}`);
 
     const articlesText = articles.map((a, i) => {
@@ -162,9 +162,13 @@ ${truncatedText}`;
 5. 某个分类若无合适文章则省略该分类，不要保留空分类
 6. 严格按模板格式输出，不添加任何前言、解释或结尾说明`;
 
-    const systemPrompt = templatePrompt
-      ? `${baseSystemPrompt}\n\n【额外要求】\n${templatePrompt}`
+    let systemPrompt = templatePrompt
+      ? `${baseSystemPrompt}\n\n【模板要求】\n${templatePrompt}`
       : baseSystemPrompt;
+    
+    if (extraPrompt) {
+        systemPrompt = `${systemPrompt}\n\n【本次生成额外要求】\n${extraPrompt}`;
+    }
 
     const userPrompt = `请将以下文章整理成周刊草稿，严格遵循下方模板的格式和分区结构，直接输出完整的 Markdown 内容。
 
@@ -185,6 +189,33 @@ ${articlesText}`;
     } catch (error) {
       console.error("Error generating draft:", error);
       return "Error generating draft. Please check backend logs.";
+    }
+  }
+
+  async refineContent(content: string, instruction: string) {
+    console.log(`Refining content with instruction: ${instruction}`);
+    
+    const systemPrompt = `你是一位专业的技术周刊编辑。请根据用户的修改指令，对已有的周刊内容进行修改和润色。
+请直接输出修改后的完整 Markdown 内容，不要包含任何解释、确认或前言后缀。保持原有的格式和结构，除非指令要求改变。`;
+
+    const userPrompt = `【原始内容】
+${content}
+
+【修改指令】
+${instruction}
+
+请根据指令修改上述内容，直接输出结果。`;
+
+    try {
+      const messages = [
+        new SystemMessage(systemPrompt),
+        new HumanMessage(userPrompt),
+      ];
+      const response = await model.invoke(messages);
+      return typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+    } catch (error) {
+      console.error("Error refining content:", error);
+      return "Error refining content.";
     }
   }
 }

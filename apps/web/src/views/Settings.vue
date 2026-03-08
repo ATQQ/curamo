@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import { Settings, Globe, Moon, Sun, Monitor, Cpu, Server, Database, Languages, FileText, Plus, Trash2, Edit2, Save, X, MessageSquare } from 'lucide-vue-next'
@@ -7,7 +7,22 @@ import client from '@/api/client'
 
 const { locale, t } = useI18n()
 const activeTab = ref('general')
-const defaultTemplateId = ref('')
+const templateType = ref('summary') // 'summary' | 'curated'
+const defaultSummaryTemplateId = ref('')
+const defaultCuratedTemplateId = ref('')
+
+const currentDefaultTemplateId = computed({
+  get: () => {
+    return templateType.value === 'summary' ? defaultSummaryTemplateId.value : defaultCuratedTemplateId.value
+  },
+  set: (val: string) => {
+    if (templateType.value === 'summary') {
+      defaultSummaryTemplateId.value = val
+    } else {
+      defaultCuratedTemplateId.value = val
+    }
+  }
+})
 
 const targetLanguage = ref('Chinese')
 const targetLanguages = [
@@ -29,8 +44,11 @@ const fetchSettings = async () => {
     const langSetting = data.find((s: any) => s.key === 'target_language')
     if (langSetting) targetLanguage.value = langSetting.value
 
-    const defaultTemplateSetting = data.find((s: any) => s.key === 'default_template_id')
-    if (defaultTemplateSetting) defaultTemplateId.value = defaultTemplateSetting.value
+    const defaultSummarySetting = data.find((s: any) => s.key === 'default_template_id')
+    if (defaultSummarySetting) defaultSummaryTemplateId.value = defaultSummarySetting.value
+
+    const defaultCuratedSetting = data.find((s: any) => s.key === 'default_curated_template_id')
+    if (defaultCuratedSetting) defaultCuratedTemplateId.value = defaultCuratedSetting.value
   }
 }
 
@@ -39,12 +57,13 @@ const isEditingTemplate = ref(false)
 const currentTemplate = ref<any>({
   name: '',
   contentPattern: '',
-  prompt: ''
+  prompt: '',
+  type: 'summary'
 })
 
 const fetchTemplates = async () => {
   try {
-    const { data } = await client.templates.get()
+    const { data } = await client.templates.get({ query: { type: templateType.value } })
     if (data) {
       templates.value = data
     }
@@ -53,17 +72,24 @@ const fetchTemplates = async () => {
   }
 }
 
+watch(templateType, () => {
+  fetchTemplates()
+  isEditingTemplate.value = false
+})
+
 const saveTemplate = async () => {
   try {
     if (currentTemplate.value.id) {
       await client.templates({ id: currentTemplate.value.id }).put({
         name: currentTemplate.value.name,
+        type: templateType.value as 'summary' | 'curated',
         contentPattern: currentTemplate.value.contentPattern,
         prompt: currentTemplate.value.prompt
       })
     } else {
       await client.templates.post({
         name: currentTemplate.value.name,
+        type: templateType.value as 'summary' | 'curated',
         contentPattern: currentTemplate.value.contentPattern,
         prompt: currentTemplate.value.prompt
       })
@@ -95,7 +121,8 @@ const createTemplate = () => {
   currentTemplate.value = {
     name: '',
     contentPattern: '## Summary\n\n- Point 1\n- Point 2',
-    prompt: ''
+    prompt: '',
+    type: templateType.value
   }
   isEditingTemplate.value = true
 }
@@ -105,9 +132,12 @@ const cancelEdit = () => {
 }
 
 const saveDefaultTemplate = async () => {
+  const key = templateType.value === 'summary' ? 'default_template_id' : 'default_curated_template_id'
+  const value = templateType.value === 'summary' ? defaultSummaryTemplateId.value : defaultCuratedTemplateId.value
+  
   await client.settings.put({
-    key: 'default_template_id',
-    value: defaultTemplateId.value
+    key,
+    value
   })
 }
 
@@ -320,15 +350,33 @@ const setTheme = (theme: string) => {
         <!-- Template Settings -->
         <div v-if="activeTab === 'templates'" class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
           <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+            <div class="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
-                <h2 class="text-lg font-medium text-slate-900">{{ t('settings.summaryTemplates') || 'Summary Templates' }}</h2>
-                <p class="text-sm text-slate-500 mt-1">{{ t('settings.manageTemplates') || 'Manage your AI summary templates' }}</p>
+                <h2 class="text-lg font-medium text-slate-900">{{ t('settings.templates') || 'Templates' }}</h2>
+                <p class="text-sm text-slate-500 mt-1">{{ t('settings.manageTemplates') || 'Manage your AI templates' }}</p>
               </div>
-              <Button v-if="!isEditingTemplate" @click="createTemplate" size="sm" class="bg-emerald-600 hover:bg-emerald-700 text-white">
-                <Plus class="h-4 w-4 mr-2" />
-                {{ t('common.create') || 'Create' }}
-              </Button>
+              <div v-if="!isEditingTemplate" class="flex items-center gap-2">
+                <div class="flex p-1 bg-slate-100 rounded-lg">
+                  <button 
+                    @click="templateType = 'summary'"
+                    class="px-3 py-1.5 text-xs font-medium rounded-md transition-all"
+                    :class="templateType === 'summary' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'"
+                  >
+                    {{ t('settings.summary') || 'Summary' }}
+                  </button>
+                  <button 
+                    @click="templateType = 'curated'"
+                    class="px-3 py-1.5 text-xs font-medium rounded-md transition-all"
+                    :class="templateType === 'curated' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'"
+                  >
+                    {{ t('settings.curated') || 'Curated Content' }}
+                  </button>
+                </div>
+                <Button @click="createTemplate" size="sm" class="bg-emerald-600 hover:bg-emerald-700 text-white">
+                  <Plus class="h-4 w-4 mr-2" />
+                  {{ t('common.create') || 'Create' }}
+                </Button>
+              </div>
             </div>
             
             <div class="p-6">
@@ -339,7 +387,7 @@ const setTheme = (theme: string) => {
                     <h3 class="text-sm font-medium text-slate-900">{{ t('settings.defaultTemplate') || 'Default Template' }}</h3>
                     <p class="text-xs text-slate-500">{{ t('settings.defaultTemplateDesc') || 'This template will be pre-selected when summarizing articles.' }}</p>
                   </div>
-                  <select v-model="defaultTemplateId" @change="saveDefaultTemplate" class="w-full sm:w-auto min-w-[200px] rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white">
+                  <select v-model="currentDefaultTemplateId" @change="saveDefaultTemplate" class="w-full sm:w-auto min-w-[200px] rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white">
                     <option value="">{{ t('common.none') || 'None (Default)' }}</option>
                     <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}</option>
                   </select>

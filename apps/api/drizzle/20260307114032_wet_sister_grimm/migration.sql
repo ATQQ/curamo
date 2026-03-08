@@ -1,0 +1,1 @@
+ALTER TABLE `templates` ADD `type` text DEFAULT 'summary' NOT NULL;

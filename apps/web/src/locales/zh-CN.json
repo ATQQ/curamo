@@ -122,7 +122,17 @@
     "article": "文章",
     "write": "撰写",
     "preview": "预览",
-    "contentPlaceholder": "生成的内容将显示在这里..."
+    "contentPlaceholder": "生成的内容将显示在这里...",
+    "addArticles": "添加文章",
+    "noAvailableArticles": "暂无新文章可添加。",
+    "extraPrompt": "额外指令",
+    "extraPromptPlaceholder": "例如：侧重于 React 生态...",
+    "refineContent": "AI 润色",
+    "refineInstruction": "润色指令",
+    "refinePlaceholder": "例如：让语气更专业，或者扩展第一部分...",
+    "refine": "润色",
+    "noArticles": "暂无文章。",
+    "addArticle": "添加文章"
   },
   "settings": {
     "title": "设置",
@@ -143,8 +153,10 @@
     "running": "运行中",
     "targetLanguage": "翻译的目标语言",
     "summaryTemplates": "总结模板",
-    "manageTemplates": "管理您的 AI 总结模板。",
+    "manageTemplates": "管理您的 AI 模板。",
     "templates": "模板管理",
+    "summary": "文章总结",
+    "curated": "精选内容",
     "noTemplates": "暂无模板。创建一个开始使用。",
     "hasCustomPrompt": "包含自定义提示词",
     "markdownTemplate": "Markdown 模板",
@@ -166,6 +178,10 @@
     "name": "名称",
     "default": "默认",
     "none": "无",
-    "confirmDelete": "确定要删除此模板吗？"
+    "confirmDelete": "确定要删除此模板吗？",
+    "selectTemplate": "选择模板",
+    "generate": "生成",
+    "addSelected": "添加已选 ({count})",
+    "refine": "润色"
   }
 }

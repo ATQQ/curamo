@@ -46,6 +46,13 @@ Go to `apps/api` directory:
 
 ```bash
 cd apps/api
-bun run drizzle-kit generate
-bun run drizzle-kit migrate
+
+# 根据 schema 定义生成 SQL 迁移文件
+bun x drizzle-kit generate
+
+# 执行数据库迁移，应用变更
+bun x drizzle-kit migrate
+
+# 直接将 schema 变更推送到数据库（通常用于快速开发/原型）
+bun x drizzle-kit push
 ```

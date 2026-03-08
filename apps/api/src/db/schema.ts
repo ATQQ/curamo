@@ -45,6 +45,7 @@ export const articles = sqliteTable('articles', {
 export const templates = sqliteTable('templates', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text('name').notNull(),
+  type: text('type', { enum: ['summary', 'curated'] }).notNull().default('summary'),
   contentPattern: text('content_pattern').notNull(),
   prompt: text('prompt'),
 });
